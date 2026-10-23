@@ -1,0 +1,161 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>WHITE ROOM OS</title>
+<style>
+:root{--bg:#F4F4F0;--fg:#111111;--mut:#6b6b66;--ln:#d6d6cf;--cd:#fbfbf9;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#111111;--fg:#F4F4F0;--mut:#a3a39d;--ln:#34342f;--cd:#1a1a18}}
+*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 "Helvetica Neue",Arial,sans-serif;padding:0 12px 84px}
+header{display:flex;justify-content:space-between;align-items:center;padding:14px 0 8px}
+h1{font-size:20px;margin:0;font-weight:700;letter-spacing:-.3px}
+.c{border:1px solid var(--ln);background:var(--cd);padding:12px;margin:10px 0}
+.big{font-size:56px;font-weight:700;line-height:1;letter-spacing:-2px}.big small{font-size:18px;color:var(--mut);letter-spacing:0}
+.m{color:var(--mut);font-size:13px}
+.bar{height:6px;background:var(--ln);margin:2px 0 8px}.bar i{display:block;height:100%;background:var(--fg)}
+.r{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap}.f{flex:1}
+input,select,textarea,button{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--fg);border-radius:0;padding:8px;width:100%;margin:3px 0}
+textarea{min-height:64px}input[type=checkbox]{width:auto}
+button{background:var(--fg);color:var(--bg);width:auto;padding:8px 14px;cursor:pointer}button.o{background:transparent;color:var(--fg);border-color:var(--ln)}
+details{border:1px solid var(--ln);margin:10px 0;padding:0 12px;background:var(--cd)}summary{padding:11px 0;cursor:pointer;font-weight:600}details[open] summary{border-bottom:1px solid var(--ln);margin-bottom:8px}details>:last-child{margin-bottom:12px}
+nav{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--bg);border-top:1px solid var(--fg);padding-bottom:env(safe-area-inset-bottom,0px)}
+nav button{flex:1;background:transparent;color:var(--mut);border:0;padding:14px 0;margin:0;font-size:12px}nav button.on{color:var(--bg);background:var(--fg)}
+.tm{font-size:38px;font-weight:700;font-variant-numeric:tabular-nums}.tag{font-size:11px;border:1px solid var(--ln);padding:1px 6px;margin-right:4px}
+#toast{display:none;position:fixed;left:12px;right:12px;bottom:70px;background:var(--fg);color:var(--bg);padding:10px;z-index:9}
+.e{color:var(--mut);padding:6px 0;font-size:13px}.col{display:flex;align-items:flex-end;gap:4px;height:70px}.col div{flex:1;background:var(--fg);min-height:2px}
+</style></head><body>
+<header><h1 id="h"></h1><button class="o" onclick="SET=!SET;R()" aria-label="Settings">Settings</button></header>
+<main id="main"></main><nav id="nav"></nav><div id="toast"></div>
+<script>
+const $=s=>document.querySelector(s),el0=i=>document.getElementById(i),g=i=>el0(i)?el0(i).value:'';
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const dstr=d=>d.toLocaleDateString('en-CA'),today=()=>dstr(new Date());
+const addDays=(s,n)=>{const d=new Date(s+'T12:00');d.setDate(d.getDate()+n);return dstr(d)};
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const DEF={acts:[],kb:[],cards:[],probs:[],games:[],ratings:[],puzzles:[],dec:[],draw:[],tasks:[],rec:{},rev:{},subjects:['Accountancy','Psychology','English'],set:{w:{a:40,p:20,s:20,q:10,r:10},t:{a:240,p:120,s:60,q:3}},timer:{run:false,acc:0,t0:0,cat:'study',sub:'Accountancy'}};
+let S;try{S=Object.assign(structuredClone(DEF),JSON.parse(localStorage.getItem('wros')||'{}'))}catch(e){S=structuredClone(DEF)}
+const save=()=>{try{localStorage.setItem('wros',JSON.stringify(S))}catch(e){}};
+const toast=m=>{const t=$('#toast');t.textContent=m;t.style.display='block';setTimeout(()=>t.style.display='none',2200)};
+const TR={Grappling:['Wrestling','Brazilian Jiu-Jitsu','Takedowns & defense','Positioning, escapes & drills'],Striking:['Boxing','Kickboxing','Footwork','Defense','Pad work & technique'],Fitness:['Calisthenics & strength','Mobility & conditioning','Warm-up','Cooldown']};
+const grpOf=s=>Object.keys(TR).find(k=>TR[k].includes(s))||'Fitness';
+const SCH=['Recovery','Grappling','Striking','Grappling','Striking','Grappling','Striking'];
+const STR=['Chess','Sudoku','Logic games','Other'],PCAT=['Logic','Mathematics','Pattern recognition','Critical thinking','Psychology reasoning'];
+const KC=['Academic','Psychology','Observation','Chess lesson','MMA technique','Decision','Drawing / creative','Personal insight','Mistake'];
+const opts=c=>c=='study'?S.subjects:c=='train'?Object.values(TR).flat():STR;
+let tab=0,Q='',CF='',SET=0,EID=null,REV=0;
+/* ---------- helpers ---------- */
+const I=(id,ph,v,t)=>`<input id="${id}" type="${t||'text'}" placeholder="${esc(ph)}" value="${esc(v)}">`;
+const T=(id,ph,v)=>`<textarea id="${id}" placeholder="${esc(ph)}">${esc(v)}</textarea>`;
+const SEL=(id,o,v,ch)=>`<select id="${id}" ${ch?`onchange="${ch}"`:''}>${(o.includes(v)||v==null?o:[...o,v]).map(x=>`<option value="${esc(x)}" ${x==v?'selected':''}>${x===''?'(no subject)':esc(x)}</option>`).join('')}</select>`;
+const bar=(v,m,l)=>`<div class="r"><span>${l}</span><span class="m">${v} / ${m}</span></div><div class="bar"><i style="width:${Math.min(100,v/parseFloat(m)*100)}%"></i></div>`;
+const mins=(d,t)=>S.acts.filter(a=>a.d==d&&a.type==t).reduce((n,a)=>n+a.m,0);
+const pc=d=>S.probs.filter(p=>p.d==d).length,rt=(a,b)=>Math.min(1,b?a/b:0);
+function score(d){const w=S.set.w,t=S.set.t,o={a:rt(mins(d,'study'),t.a)*w.a,p:rt(mins(d,'train'),t.p)*w.p,s:rt(mins(d,'strategy'),t.s)*w.s,q:rt(pc(d),t.q)*w.q,r:((S.tasks.some(x=>x.d==d)?.5:0)+(S.rev[d]?.5:0))*w.r};o.t=Math.round(o.a+o.p+o.s+o.q+o.r);return o}
+const addAct=(type,sub,m,note,grp)=>{S.acts.push({id:uid(),d:today(),type,sub,m:+m,note:note||'',grp});save()};
+const delAct=id=>{S.acts=S.acts.filter(a=>a.id!=id);save();R()};
+const actList=(type)=>{const l=S.acts.filter(a=>a.d==today()&&a.type==type);return l.length?l.map(a=>`<div class="r"><span class="f">${esc(a.sub)} · ${a.m} min <span class="m">${esc(a.note)}</span></span><button class="o" onclick="delAct('${a.id}')">Delete</button></div>`).join(''):'<div class="e">No sessions logged today.</div>'};
+/* ---------- timer (timestamp based: survives pause + refresh) ---------- */
+const el=()=>S.timer.acc+(S.timer.run?Date.now()-S.timer.t0:0);
+const fmt=ms=>{const s=Math.floor(ms/1000),h=Math.floor(s/3600),m=Math.floor(s%3600/60);return(h?h+':':'')+String(m).padStart(h?2:1,'0')+':'+String(s%60).padStart(2,'0')};
+const tStart=()=>{if(!S.timer.run){S.timer.run=true;S.timer.t0=Date.now();save();R()}};
+const tPause=()=>{if(S.timer.run){S.timer.acc+=Date.now()-S.timer.t0;S.timer.run=false;save();R()}};
+const tStop=()=>{const m=Math.round(el()/60000);if(m>=1){addAct(S.timer.cat,S.timer.sub,m,'timer',S.timer.cat=='train'?grpOf(S.timer.sub):undefined);toast(m+' min saved')}else toast('Under 1 min: not saved');S.timer.acc=0;S.timer.run=false;save();R()};
+const setCat=c=>{S.timer.cat=c;S.timer.sub=opts(c)[0];save();R()};
+function timerBox(lock){const t=S.timer;if(lock&&t.cat!='study'&&!t.run&&!t.acc){t.cat='study';t.sub=S.subjects[0]}
+return `${lock?'':SEL('t_c',['study','train','strategy'],t.cat,'setCat(this.value)')}${SEL('t_s',opts(t.cat),t.sub,'S.timer.sub=this.value;save()')}<div class="tm" id="tm">${fmt(el())}</div><div class="r"><div>${t.run?'<button onclick="tPause()">Pause</button>':`<button onclick="tStart()">${t.acc?'Resume':'Start'}</button>`} <button class="o" onclick="tStop()">Stop &amp; save</button></div></div>`}
+setInterval(()=>{const e=el0('tm');if(e)e.textContent=fmt(el())},1000);
+/* ---------- tasks & reviews ---------- */
+const addT=()=>{const v=g('tk').trim();if(!v)return toast('Enter a task');S.tasks.push({id:uid(),t:v,done:false,d:today()});save();R()};
+const tog=id=>{const x=S.tasks.find(x=>x.id==id);x.done=!x.done;save();R()};
+const delT=id=>{S.tasks=S.tasks.filter(x=>x.id!=id);save();R()};
+function revForm(){const r=S.rev[today()]||{};return `${T('rv1','What did I complete?',r.a)}${T('rv2','What distracted me?',r.b)}${T('rv3','What did I learn?',r.c)}${T('rv4','What should I improve tomorrow?',r.d)}<button onclick="saveRev()">Save review</button>`}
+const saveRev=()=>{S.rev[today()]={a:g('rv1'),b:g('rv2'),c:g('rv3'),d:g('rv4')};save();toast('Review saved');R()};
+/* ---------- DASHBOARD ---------- */
+function dash(){const d=today(),t=S.set.t,sc=score(d),ts=S.tasks.filter(x=>x.d==d),nx=ts.find(x=>!x.done),rc=S.rec[d];
+return `<div class="c"><div class="big">${sc.t}<small>/100</small></div><div class="m">Next priority: ${nx?esc(nx.t):'none set'}</div><div style="height:8px"></div>${bar(mins(d,'study'),t.a+' min','Study')}${bar(mins(d,'train'),t.p+' min','Physical + MMA')}${bar(mins(d,'strategy'),t.s+' min','Strategy')}${bar(pc(d),t.q,'Problems')}<div class="m">${rc?`Sleep ${rc.sleep}h · energy ${rc.en}/5 · fatigue ${rc.fa}/5`:'No recovery logged today. Add it in Physical Training.'}</div></div>
+<div class="c"><b>Focus timer</b>${timerBox()}</div>
+<div class="c"><b>Today's tasks</b>${ts.length?ts.map(x=>`<div class="r"><input type="checkbox" ${x.done?'checked':''} onchange="tog('${x.id}')"><span class="f" ${x.done?'style="text-decoration:line-through;color:var(--mut)"':''}>${esc(x.t)}</span><button class="o" onclick="delT('${x.id}')">×</button></div>`).join(''):'<div class="e">No tasks yet. Planning your day earns review points.</div>'}<div class="r"><div class="f">${I('tk','Add a task')}</div><button onclick="addT()">Add</button></div></div>
+<details><summary>Score breakdown</summary>${[['Academics','a'],['Physical training','p'],['Strategy','s'],['Problem-solving','q'],['Review &amp; planning','r']].map(([n,k])=>`<div class="r"><span>${n}</span><span>${sc[k].toFixed(1)} / ${S.set.w[k]}</span></div>`).join('')}<div class="m">Sleep, notes, drawing and journals never add points.</div></details>
+<details><summary>Evening review</summary>${revForm()}</details>`}
+/* ---------- KNOWLEDGE entries (shared by Academics + Knowledge Lab) ---------- */
+function kbForm(cats){const e=S.kb.find(x=>x.id==EID)||{};
+return `<details ${EID?'open':''}><summary>${EID?'Edit entry':'+ New entry'}</summary>${I('k_t','Title',e.title)}${SEL('k_c',cats,e.cat||cats[0])}${SEL('k_s',['',...S.subjects],e.subject||'')}${T('k_b','Content',e.content)}${I('k_g','Tags, comma separated',(e.tags||[]).join(', '))}<div class="m">Review date (optional)</div>${I('k_r','',e.rev,'date')}${I('k_u','Source link (optional)',e.src)}<div class="r"><div><button onclick="saveKb()">Save entry</button> ${EID?'<button class="o" onclick="EID=null;R()">Cancel</button>':''}</div></div></details>`}
+function saveKb(){const title=g('k_t').trim();if(!title)return toast('Title is required');let src=g('k_u').trim();if(src&&!/^https?:\/\//i.test(src))return toast('Source must start with http(s)://');
+const o={title,content:g('k_b'),cat:g('k_c'),subject:g('k_s'),tags:g('k_g').split(',').map(x=>x.trim()).filter(Boolean),rev:g('k_r'),src};
+if(EID)Object.assign(S.kb.find(x=>x.id==EID),o);else S.kb.push({id:uid(),d:today(),...o});EID=null;save();toast('Saved to Knowledge Lab');R()}
+const delKb=id=>{if(confirm('Delete this entry?')){S.kb=S.kb.filter(x=>x.id!=id);save();R()}};
+const edKb=id=>{EID=id;R();scrollTo(0,0)};
+const mkCard=id=>{const e=S.kb.find(x=>x.id==id);S.cards.push({id:uid(),f:e.title,b:e.content,subject:e.subject,tags:e.tags,rev:addDays(today(),1),box:0});save();toast('Flashcard created');R()};
+function kbList(f){const q=Q.toLowerCase(),l=S.kb.filter(e=>f(e)&&(!CF||e.cat==CF)&&(!q||(e.title+' '+e.content+' '+e.tags.join(' ')+' '+e.subject+' '+e.cat).toLowerCase().includes(q))).sort((a,b)=>b.d.localeCompare(a.d));
+return l.length?l.map(e=>`<div class="c"><div class="r"><b class="f">${esc(e.title)}</b><span class="m">${e.d}</span></div><div><span class="tag">${esc(e.cat)}</span>${e.subject?`<span class="tag">${esc(e.subject)}</span>`:''}${e.tags.map(t=>`<span class="tag">#${esc(t)}</span>`).join('')}${e.rev?`<span class="tag">review ${e.rev}</span>`:''}</div><div style="white-space:pre-wrap;margin:6px 0">${esc(e.content.slice(0,300))}${e.content.length>300?'…':''}</div>${/^https?:\/\//i.test(e.src||'')?`<a class="m" href="${esc(e.src)}" target="_blank" rel="noopener">Source</a>`:''}<div class="r"><div><button class="o" onclick="edKb('${e.id}')">Edit</button> <button class="o" onclick="mkCard('${e.id}')">Make flashcard</button> <button class="o" onclick="delKb('${e.id}')">Delete</button></div></div></div>`).join(''):'<div class="e">No entries match. Add one above.</div>'}
+const updList=()=>{const e=el0('kl');if(e)e.innerHTML=kbList(window.KF)};
+/* ---------- ACADEMICS ---------- */
+let SHOW=0;
+function acad(){const d=today(),t=S.set.t,wk=Array.from({length:7},(_,i)=>addDays(d,i-6)),due=S.cards.filter(c=>c.rev<=d);window.KF=e=>!!e.subject||['Academic','Psychology','Mistake'].includes(e.cat);
+const c=due[0];
+return `<div class="c">${bar(mins(d,'study'),t.a+' min','Study today')}${S.subjects.map(s=>{const m=S.acts.filter(a=>a.type=='study'&&a.sub==s&&a.d==d).reduce((n,a)=>n+a.m,0),w=S.acts.filter(a=>a.type=='study'&&a.sub==s&&wk.includes(a.d)).reduce((n,a)=>n+a.m,0);return `<div class="r"><span>${esc(s)}</span><span class="m">${m} min today · ${w} this week</span></div>`}).join('')}</div>
+<div class="c"><b>Focus timer</b>${timerBox(1)}<details><summary>Log time manually</summary>${SEL('a_s',S.subjects,S.subjects[0])}${I('a_m','Minutes','','number')}${I('a_n','Note (revision session, topic…)')}<button onclick="logStudy()">Log session</button></details>${actList('study')}</div>
+<details><summary>Subjects</summary><div class="r"><div class="f">${I('sj','New subject')}</div><button onclick="addSj()">Add</button></div>${S.subjects.map(s=>`<div class="r"><span>${esc(s)}</span>${S.subjects.length>1?`<button class="o" onclick="delSj('${esc(s)}')">Remove</button>`:''}</div>`).join('')}</details>
+<details><summary>Flashcards (${due.length} due of ${S.cards.length})</summary>${c?`<div class="c"><b>${esc(c.f)}</b>${SHOW?`<div style="white-space:pre-wrap;margin:8px 0">${esc(c.b)}</div><div class="r"><button class="o" onclick="rate('${c.id}',0)">Again</button><button onclick="rate('${c.id}',1)">Good</button><button class="o" onclick="rate('${c.id}',2)">Easy</button></div>`:`<div style="margin-top:8px"><button onclick="SHOW=1;R()">Show answer</button></div>`}</div>`:`<div class="e">${S.cards.length?'Nothing due. Spaced repetition will remind you.':'No flashcards yet. Add one below or from any note.'}</div>`}<b>New card</b>${I('c_f','Front (question)')}${T('c_b','Back (answer)')}${SEL('c_s',['',...S.subjects],'')}${I('c_g','Tags, comma separated')}<button onclick="addCard()">Add card</button></details>
+${kbForm(['Academic','Psychology','Mistake'])}
+<div class="c"><b>Notebook</b><div class="m">Notes saved here live in the Knowledge Lab. Use category Mistake for lessons learned.</div><input placeholder="Search notebook" value="${esc(Q)}" oninput="Q=this.value;updList()"><div id="kl">${kbList(KF)}</div></div>`}
+function logStudy(){const m=+g('a_m');if(m<1)return toast('Enter minutes');addAct('study',g('a_s'),m,g('a_n'));R()}
+const addSj=()=>{const v=g('sj').trim();if(v&&!S.subjects.includes(v)){S.subjects.push(v);save();R()}};
+const delSj=s=>{S.subjects=S.subjects.filter(x=>x!=s);if(S.timer.sub==s)S.timer.sub=S.subjects[0];save();R()};
+function addCard(){if(!g('c_f').trim()||!g('c_b').trim())return toast('Front and back required');S.cards.push({id:uid(),f:g('c_f'),b:g('c_b'),subject:g('c_s'),tags:g('c_g').split(',').map(x=>x.trim()).filter(Boolean),rev:addDays(today(),1),box:0});save();R()}
+function rate(id,q){const c=S.cards.find(x=>x.id==id),I=[1,2,4,8,16,32];c.box=q==0?0:Math.min(5,c.box+q);c.rev=addDays(today(),I[c.box]);SHOW=0;save();R()}
+/* ---------- PHYSICAL ---------- */
+function advice(r){if(!r)return 'Log sleep, energy and fatigue to get a suggestion.';if(r.sleep<6||r.fa>=4||r.en<=2)return 'Recovery looks low. Choose mobility, light technique or rest. Skip the target rather than train through pain or on short sleep.';if(r.sleep>=7&&r.fa<=2)return 'Recovery looks good for planned work. Stop if anything hurts.';return 'Moderate recovery. Keep intensity controlled and finish early if needed.'}
+function phys(){const d=today(),t=S.set.t,wk=Array.from({length:7},(_,i)=>addDays(d,i-6)),r=S.rec[d]||{},n=k=>S.acts.filter(a=>a.type=='train'&&a.grp==k&&wk.includes(a.d)).length;
+return `<div class="c"><div class="m">Today's MMA focus</div><div style="font-size:22px;font-weight:700">${SCH[new Date().getDay()]}</div>${bar(mins(d,'train'),t.p+' min','Training today (MMA included)')}<div class="m">Past 7 days: ${n('Grappling')} grappling · ${n('Striking')} striking sessions</div><div class="m">Week: Mon Grappling, Tue Striking, Wed Grappling, Thu Striking, Fri Grappling, Sat Striking, Sun Recovery</div></div>
+<div class="c"><b>Recovery</b><div class="m">${advice(S.rec[d])}</div><details><summary>Log recovery</summary>${I('r_s','Sleep hours',r.sleep,'number')}${I('r_e','Energy 1-5',r.en,'number')}${I('r_f','Fatigue 1-5',r.fa,'number')}${I('r_n','Notes (optional)',r.n)}<button onclick="saveRec()">Save recovery</button></details></div>
+<div class="c"><b>Focus timer</b>${timerBox()}</div>
+<details open><summary>Log a session</summary><select id="p_s">${Object.entries(TR).map(([k,l])=>`<optgroup label="${k}">${l.map(x=>`<option>${x}</option>`).join('')}</optgroup>`).join('')}</select>${I('p_m','Minutes','','number')}${T('p_n','Session notes / coach feedback')}<div class="r"><label><input type="checkbox" id="p_w"> Warm-up done</label><label><input type="checkbox" id="p_c"> Cooldown done</label></div><button onclick="logTr()">Log session</button><div class="m">Each session is saved once and counts once toward the 2-hour target.</div></details>
+<div class="c"><b>Today's sessions</b>${actList('train')}</div>`}
+function saveRec(){const sl=+g('r_s'),en=+g('r_e'),fa=+g('r_f');if(!(sl>0&&sl<=24&&en>=1&&en<=5&&fa>=1&&fa<=5))return toast('Check values: sleep 0-24, energy and fatigue 1-5');S.rec[today()]={sleep:sl,en,fa,n:g('r_n')};save();R()}
+function logTr(){const m=+g('p_m');if(m<1)return toast('Enter minutes');const s=g('p_s'),x=[g('p_n'),el0('p_w').checked?'warm-up':'',el0('p_c').checked?'cooldown':''].filter(Boolean).join(' · ');addAct('train',s,m,x,grpOf(s));R()}
+/* ---------- STRATEGY ---------- */
+function strat(){const d=today(),t=S.set.t,rs=S.ratings,gm=S.games,w=gm.filter(x=>x.r=='Win').length,l=gm.filter(x=>x.r=='Loss').length,pa=S.puzzles.reduce((n,x)=>n+x.a,0),ps=S.puzzles.reduce((n,x)=>n+x.s,0),pr=S.probs,ok=pr.filter(p=>p.res=='Correct').length,q=pr.filter(p=>p.res=='Wrong'&&!p.rv);
+return `<div class="c">${bar(mins(d,'strategy'),t.s+' min','Strategy today')}${bar(pc(d),t.q,'Problems today')}<div class="m">Practice stats only. This does not measure IQ.</div></div>
+<div class="c"><b>Log practice time</b>${SEL('s_t',STR,'Chess')}${I('s_m','Minutes','','number')}<button onclick="logSt()">Log</button>${actList('strategy')}</div>
+<details><summary>Chess</summary><div class="m">Rating ${rs.length?rs[rs.length-1].v:'—'} · ${gm.length} games (${w}W ${gm.length-w-l}D ${l}L) · puzzles ${ps}/${pa}</div><div class="r"><div class="f">${I('ch_r','Current rating','','number')}</div><button onclick="addRt()">Save</button></div>${SEL('g_r',['Win','Draw','Loss'],'Win')}${T('g_l','Mistakes and lessons')}<button onclick="addGm()">Add game</button><div class="r"><div class="f">${I('pz_a','Puzzles attempted','','number')}</div><div class="f">${I('pz_s','Solved','','number')}</div><button onclick="addPz()">Add</button></div>${gm.slice(-4).reverse().map(x=>`<div class="m">${x.d} ${x.r}: ${esc(x.l)}</div>`).join('')}</details>
+<details open><summary>Record a problem</summary>${SEL('q_c',PCAT,'Logic')}${SEL('q_d',['Easy','Medium','Hard'],'Medium')}${I('q_m','Minutes spent','','number')}${I('q_a','My answer')}${T('q_e','Explanation')}${SEL('q_r',['Correct','Wrong'],'Correct')}${SEL('q_f',['1','2','3','4','5'],'3')}<div class="m">Confidence 1-5 (above)</div>${I('q_l','Lesson learned')}<button onclick="addPr()">Save problem</button></details>
+<div class="c"><b>Review queue (${q.length})</b><div class="m">Accuracy ${pr.length?Math.round(ok/pr.length*100)+'% of '+pr.length:'no data yet'}</div>${q.length?q.map(p=>`<div class="c"><b>${esc(p.cat)}</b> <span class="tag">${p.dif}</span> <span class="tag">conf ${p.conf}/5</span><div>Answer: ${esc(p.ans)}</div><div class="m">${esc(p.exp)}</div><div class="m">Lesson: ${esc(p.less)}</div><button onclick="rvPr('${p.id}')">Mark reviewed</button></div>`).join(''):'<div class="e">No missed problems waiting for review.</div>'}</div>`}
+function logSt(){const m=+g('s_m');if(m<1)return toast('Enter minutes');addAct('strategy',g('s_t'),m);R()}
+const addRt=()=>{const v=+g('ch_r');if(v>0){S.ratings.push({d:today(),v});save();R()}};
+const addGm=()=>{S.games.push({d:today(),r:g('g_r'),l:g('g_l')});save();R()};
+const addPz=()=>{const a=+g('pz_a'),s=+g('pz_s');if(a<1||s<0||s>a)return toast('Solved cannot exceed attempted');S.puzzles.push({d:today(),a,s});save();R()};
+const addPr=()=>{S.probs.push({id:uid(),d:today(),cat:g('q_c'),dif:g('q_d'),m:+g('q_m')||0,ans:g('q_a'),exp:g('q_e'),res:g('q_r'),conf:+g('q_f'),less:g('q_l'),rv:false});save();toast('Problem saved');R()};
+const rvPr=id=>{S.probs.find(p=>p.id==id).rv=true;save();R()};
+/* ---------- KNOWLEDGE LAB ---------- */
+function know(){window.KF=()=>true;const wk=Array.from({length:7},(_,i)=>addDays(today(),i-6));
+return `${kbForm(KC)}<button class="o" onclick="tpl()">Insert observation template</button>
+<div class="c"><input placeholder="Search everything" value="${esc(Q)}" oninput="Q=this.value;updList()">${SEL('cf',['',...KC],CF,'CF=this.value;updList()').replace('(no subject)','All categories')}<div id="kl">${kbList(KF)}</div></div>
+<details><summary>Decision journal (${S.dec.length})</summary>${I('d_d','Decision')}${T('d_e','Evidence')}${T('d_r','Reasoning')}${SEL('d_c',['1','2','3','4','5'],'3')}<div class="m">Confidence 1-5 (above)</div>${I('d_x','Expected outcome')}${I('d_v','',addDays(today(),14),'date')}<button onclick="addDec()">Save decision</button>${S.dec.length?S.dec.slice().reverse().map(x=>`<div class="c"><b>${esc(x.d)}</b> <span class="m">conf ${x.c}/5 · review ${x.v}</span><div class="m">Expected: ${esc(x.x)}</div>${x.o?`<div>Outcome: ${esc(x.o)}</div>`:`<button class="o" onclick="decOut('${x.id}')">Record outcome</button>`}</div>`).join(''):'<div class="e">No decisions recorded yet.</div>'}</details>
+<details><summary>Drawing &amp; creativity (${S.draw.filter(x=>wk.includes(x.d)).length} this week)</summary>${SEL('w_t',['Drawing practice','Anatomy study','Technique learned'],'Drawing practice')}${I('w_m','Minutes','','number')}${I('w_n','Notes')}${I('w_u','Reference link (optional)')}<button onclick="addDr()">Log practice</button>${S.draw.length?S.draw.slice(-8).reverse().map(x=>`<div class="m">${x.d} · ${x.t} · ${x.m} min · ${esc(x.n)}</div>`).join(''):'<div class="e">No practice logged yet.</div>'}</details>`}
+function tpl(){el0('k_c').value='Observation';el0('k_b').value='Situation:\n\nDirectly observed facts (what I saw or heard):\n\nPossible interpretations:\n\nAlternative explanations:\n\nWhat I learned:\n\n(Behavior is evidence, not proof of hidden thoughts. No diagnosing.)';el0('k_b').closest('details').open=true}
+const addDec=()=>{if(!g('d_d').trim())return toast('Describe the decision');S.dec.push({id:uid(),d:g('d_d'),e:g('d_e'),r:g('d_r'),c:g('d_c'),x:g('d_x'),v:g('d_v'),o:''});save();R()};
+const decOut=id=>{const o=prompt('Actual outcome and lessons learned?');if(o){S.dec.find(x=>x.id==id).o=o;save();R()}};
+const addDr=()=>{const u=g('w_u').trim();if(u&&!/^https?:\/\//i.test(u))return toast('Link must start with http(s)://');S.draw.push({d:today(),t:g('w_t'),m:+g('w_m')||0,n:g('w_n'),u});save();R()};
+/* ---------- ANALYTICS ---------- */
+function anal(){const d0=today(),D=Array.from({length:7},(_,i)=>addDays(d0,i-6)),t=S.set.t,sum=y=>D.reduce((n,d)=>n+mins(d,y),0),st=sum('study'),tr=sum('train'),sg=sum('strategy'),pr=S.probs.filter(p=>D.includes(p.d)),ok=pr.filter(p=>p.res=='Correct').length,ses=k=>S.acts.filter(a=>D.includes(a.d)&&a.type=='train'&&a.grp==k).length,sl=D.map(d=>S.rec[d]&&S.rec[d].sleep).filter(x=>x),sc=D.map(d=>score(d).t),avg=sl.length?sl.reduce((a,b)=>a+b,0)/sl.length:0;
+const A=[['Academics',st/(t.a*7),D.filter(d=>mins(d,'study')>=t.a).length],['Physical training',tr/(t.p*7),D.filter(d=>mins(d,'train')>=t.p).length],['Strategy',sg/(t.s*7),D.filter(d=>mins(d,'strategy')>=t.s).length],['Problem-solving',pr.length/(t.q*7),D.filter(d=>pc(d)>=t.q).length]];
+const any=st+tr+sg+pr.length>0,best=A.slice().sort((a,b)=>b[2]-a[2])[0],low=A.slice().sort((a,b)=>a[1]-b[1])[0],sug=[];
+if(sl.length>=3&&avg<7)sug.push(`Logged sleep averaged ${avg.toFixed(1)} h. Protect sleep before adding load.`);
+if(pr.length>=3&&ok/pr.length<.6)sug.push(`Problem accuracy is ${Math.round(ok/pr.length*100)}%. Work through the missed-problem queue.`);
+if(st>0&&st<t.a*3.5)sug.push('Study is under half of the weekly target. Try shorter, fixed blocks.');
+const rv=Object.keys(S.rev).sort().slice(-3).reverse();
+return `<div class="c"><b>Last 7 days</b><div class="col">${sc.map(v=>`<div style="height:${Math.max(3,v)}%" title="${v}"></div>`).join('')}</div><div class="m">Discipline score per day: ${sc.join(' · ')} (avg ${Math.round(sc.reduce((a,b)=>a+b,0)/7)})</div></div>
+<div class="c">${bar(Math.round(st/6)/10,Math.round(t.a*7/6)/10+' h','Study hours')}${bar(tr,t.p*7+' min','Training minutes')}${bar(sg,t.s*7+' min','Strategy minutes')}<div class="r"><span>Grappling / striking sessions</span><span>${ses('Grappling')} / ${ses('Striking')}</span></div><div class="r"><span>Problem accuracy</span><span>${pr.length?Math.round(ok/pr.length*100)+'% ('+pr.length+')':'no data'}</span></div><div class="r"><span>Sleep consistency</span><span>${sl.length>=2?`${sl.length} nights, ${Math.min(...sl)}–${Math.max(...sl)} h`:'not enough data'}</span></div><div class="m">Targets are daily goals × 7. Sunday is a recovery day, so a gap there is expected.</div></div>
+<div class="c"><div class="r"><span>Most consistent</span><b>${any&&best[2]?best[0]+' ('+best[2]+' days on target)':'not enough data yet'}</b></div><div class="r"><span>One area to improve</span><b>${any?low[0]:'not enough data yet'}</b></div>${sug.length?sug.map(s=>`<div class="m">• ${s}</div>`).join(''):'<div class="m">No suggestions without more data.</div>'}</div>
+<details open><summary>Daily review</summary>${revForm()}</details>
+<details><summary>Recent reviews</summary>${rv.length?rv.map(k=>`<div class="c"><b>${k}</b><div class="m">Done: ${esc(S.rev[k].a)}</div><div class="m">Distractions: ${esc(S.rev[k].b)}</div><div class="m">Learned: ${esc(S.rev[k].c)}</div><div class="m">Improve: ${esc(S.rev[k].d)}</div></div>`).join(''):'<div class="e">No reviews saved yet.</div>'}</details>`}
+/* ---------- SETTINGS ---------- */
+function settings(){const w=S.set.w,t=S.set.t,tot=w.a+w.p+w.s+w.q+w.r;
+return `<div class="c"><b>Settings</b><div class="m">Score weights (total ${tot}${tot!=100?', not 100':''})</div>${[['a','Academics'],['p','Physical'],['s','Strategy'],['q','Problems'],['r','Review']].map(([k,n])=>`<div class="r"><span>${n}</span><input id="w_${k}" type="number" style="width:80px" value="${w[k]}"></div>`).join('')}<div class="m">Daily targets (minutes; problems count)</div>${[['a','Study'],['p','Training'],['s','Strategy'],['q','Problems']].map(([k,n])=>`<div class="r"><span>${n}</span><input id="t_${k}" type="number" style="width:80px" value="${t[k]}"></div>`).join('')}<button onclick="saveSet()">Save settings</button>
+<details><summary>Export / import data</summary><textarea id="exp" readonly style="min-height:90px">${esc(JSON.stringify(S))}</textarea><button onclick="navigator.clipboard.writeText(el0('exp').value).then(()=>toast('Copied'),()=>toast('Select and copy manually'))">Copy JSON</button><div class="m">Paste a backup to import:</div><textarea id="imp"></textarea><button onclick="imp()">Validate &amp; import</button></details><button class="o" onclick="SET=0;R()">Close</button></div>`}
+function saveSet(){const w={},t={};for(const k of'apsqr')w[k]=+g('w_'+k);for(const k of'apsq')t[k]=+g('t_'+k);if(Object.values(w).some(v=>!(v>=0))||Object.values(t).some(v=>!(v>0)))return toast('Weights must be 0 or more, targets above 0');S.set={w,t};save();toast('Settings saved');R()}
+function imp(){try{const o=JSON.parse(g('imp'));if(!o||typeof o!='object'||!['acts','kb','cards','probs','tasks','dec','draw'].every(k=>Array.isArray(o[k])))throw 0;if(o.set&&(!o.set.w||!o.set.t))throw 0;S=Object.assign(structuredClone(DEF),o);save();toast('Imported');R()}catch(e){toast('Invalid backup: nothing was changed')}}
+/* ---------- shell ---------- */
+const TABS=['Dashboard','Academics','Physical Training','Strategy Lab','Knowledge Lab','Analytics & Review'],IC=['Home','Study','Body','Strategy','Know','Review'];
+function R(){$('#h').textContent=TABS[tab];$('#main').innerHTML=(SET?settings():'')+[dash,acad,phys,strat,know,anal][tab]();$('#nav').innerHTML=TABS.map((t,i)=>`<button class="${i==tab?'on':''}" aria-label="${t}" onclick="go(${i})">${IC[i]}</button>`).join('')}
+function go(i){tab=i;SET=0;EID=null;Q='';CF='';SHOW=0;scrollTo(0,0);R()}
+R();
+</script></body></html>
